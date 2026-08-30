@@ -2,6 +2,7 @@
 Module: tlbo_optimizer.py
 Description: Teaching-Learning-Based Optimization (TLBO) for selecting the optimal 
 5 acoustic features out of 29 by minimizing the intra-class to inter-class scatter ratio.
+Includes iteration-by-iteration convergence history tracking.
 """
 
 import numpy as np
@@ -51,13 +52,14 @@ class TLBOFeatureSelector:
     """
     Continuous TLBO feature selection mapped to top-K feature indices.
     """
-    def __init__(self, n_learners: int = 30, max_iter: int = 100, target_features: int = 5, random_state: int = 42):
+    def __init__(self, n_learners: int = 50, max_iter: int = 200, target_features: int = 5, random_state: int = 42):
         self.n_learners = n_learners
         self.max_iter = max_iter
         self.target_features = target_features
         self.random_state = random_state
         self.best_indices = None
         self.best_fitness = float("inf")
+        self.history = []
 
     def _get_top_indices(self, continuous_vector: np.ndarray) -> np.ndarray:
         """
@@ -67,7 +69,8 @@ class TLBOFeatureSelector:
 
     def fit(self, X: np.ndarray, y: np.ndarray):
         """
-        Executes Teacher Phase and Learner Phase optimization iterations.
+        Executes Teacher Phase and Learner Phase optimization iterations
+        and logs the minimum scatter ratio at each step.
         """
         np.random.seed(self.random_state)
         n_samples, n_features = X.shape
@@ -81,10 +84,13 @@ class TLBOFeatureSelector:
             selected_idx = self._get_top_indices(population[i])
             fitness[i] = compute_scatter_ratio(X[:, selected_idx], y)
 
+        self.history = []
+
         for iteration in range(self.max_iter):
             # Identify current Teacher (learner with lowest scatter ratio)
             best_idx = np.argmin(fitness)
             teacher = population[best_idx].copy()
+            self.history.append(float(fitness[best_idx]))
 
             # ----------------- Phase 1: Teacher Phase -----------------
             class_mean = np.mean(population, axis=0)
@@ -122,8 +128,10 @@ class TLBOFeatureSelector:
 
         # Extract optimal feature subset found
         best_idx = np.argmin(fitness)
-        self.best_fitness = fitness[best_idx]
+        self.best_fitness = float(fitness[best_idx])
         self.best_indices = self._get_top_indices(population[best_idx])
+        self.history.append(self.best_fitness)
+        
         return self
 
     def transform(self, X: np.ndarray) -> np.ndarray:

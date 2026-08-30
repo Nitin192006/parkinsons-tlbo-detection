@@ -2,9 +2,11 @@
 Module: main.py
 Description: End-to-end multi-vowel evaluation pipeline followed by an interactive
 testing menu for microphone recording or custom audio file evaluation.
+Also saves trained models to outputs/trained_models.pkl for instant re-testing.
 """
 
 import os
+import pickle
 import numpy as np
 from sklearn.svm import SVC
 from sklearn.calibration import CalibratedClassifierCV
@@ -127,10 +129,17 @@ def run_pipeline():
         print("=" * 90)
 
     # Save visualization plots
+    os.makedirs("outputs", exist_ok=True)
     plot_convergence(convergence_histories, "outputs/tlbo_convergence.png")
     plot_confusion_matrices(confusion_matrices, "outputs/confusion_matrices.png")
     if ensemble_metrics:
         plot_metrics_comparison(results, ensemble_metrics, "outputs/vowel_comparison.png")
+
+    # Save trained models for instant inference in test_only.py
+    model_save_path = os.path.join("outputs", "trained_models.pkl")
+    with open(model_save_path, "wb") as f:
+        pickle.dump(trained_models, f)
+    print(f"\n[+] Trained models saved to '{model_save_path}'.")
 
     # Interactive Testing Interface
     while True:
